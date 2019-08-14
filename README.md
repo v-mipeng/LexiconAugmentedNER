@@ -1,5 +1,5 @@
 # LexiconAugmentedNER
-This is the implementation of our arxiv paper "Simplify the Usage of Lexicon in Chinese NER", which rejects complicated operations for incorporating word lexicon for Chinese NER. We show that incorporating lexicon in NER can be quite simple and, at the same time, effective.
+This is the implementation of our arxiv paper "Simplify the Usage of Lexicon in Chinese NER", which rejects complicated operations for incorporating word lexicon in Chinese NER. We show that incorporating lexicon in Chinese NER can be quite simple and, at the same time, effective.
 
 # Source code description
 ## Requirement:
