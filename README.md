@@ -11,16 +11,26 @@ Pytorch 0.4.1
 ======
 CoNLL format, with each character and its label splited by a whitespace in a line. The "BMES" tag scheme is prefered.
 
-别 O
+别 O 
+
 错 O
+
 过 O
+
 邻 O
+
 近 O
+
 大 B-LOC
+
 鹏 M-LOC
+
 湾 E-LOC
+
 的 O
+
 湿 O
+
 地 O
 
 ## Pretrain embedding:
