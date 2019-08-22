@@ -35,11 +35,11 @@ CoNLL format, with each character and its label splited by a whitespace in a lin
 
 ## Pretrain embedding:
 ======
-The pretrained embeddings(word embedding, char embedding and bichar embedding) are the same with Lattice LSTM(https://github.com/jiesutd/LatticeLSTM)
+The pretrained embeddings(word embedding, char embedding and bichar embedding) are the same with [Lattice LSTM](https://www.aclweb.org/anthology/P18-1144)
 
 ## Run the code:
 ======
-1. Download the character embeddings and word embeddings and put them in the `data` folder.
+1. Download the character embeddings and word embeddings from [Lattice LSTM](https://github.com/jiesutd/LatticeLSTM) and put them in the `data` folder.
 2. To train/test the demo on OntoNotes: `sh train.sh` / `sh test.sh`
 3. To train/test the demo on the other three datasets: change the learning rate and lstm hidden dimension according to the paper and run `sh train.sh` / `sh test.sh`
 3. To train/test your own data: modify the 'train.sh' or 'test.sh' file with your file path, and run the shell file.
