@@ -1,5 +1,5 @@
 # LexiconAugmentedNER
-This is the implementation of our arxiv paper "Simplify the Usage of Lexicon in Chinese NER", which rejects complicated operations for incorporating word lexicon in Chinese NER. We show that incorporating lexicon in Chinese NER can be quite simple and, at the same time, effective. In addition, we aruge that our method is computational effiency for both training and inference.
+This is the implementation of our arxiv paper "[Simplify the Usage of Lexicon in Chinese NER](https://arxiv.org/pdf/1901.09453.pdf)", which rejects complicated operations for incorporating word lexicon in Chinese NER. We show that incorporating lexicon in Chinese NER can be quite simple and, at the same time, effective.
 
 # Source code description
 ## Requirement:
@@ -43,3 +43,4 @@ The pretrained embeddings(word embedding, char embedding and bichar embedding) a
 2. To train/test the demo on OntoNotes: `sh train.sh` / `sh test.sh`
 3. To train/test the demo on the other three datasets: change the learning rate and lstm hidden dimension according to the paper and run `sh train.sh` / `sh test.sh`
 3. To train/test your own data: modify the 'train.sh' or 'test.sh' file with your file path, and run the shell file.
+
