@@ -9,7 +9,7 @@ Pytorch 0.4.1
 
 ## Input format:
 ======
-CoNLL format, with each character and its label splited by a whitespace in a line. The "BMES" tag scheme is prefered.
+CoNLL format, with each character and its label split by a whitespace in a line. The "BMES" tag scheme is prefered.
 
 别 O 
 
@@ -40,7 +40,15 @@ The pretrained embeddings(word embedding, char embedding and bichar embedding) a
 ## Run the code:
 ======
 1. Download the character embeddings and word embeddings from [Lattice LSTM](https://github.com/jiesutd/LatticeLSTM) and put them in the `data` folder.
-2. To train/test the demo on OntoNotes: `sh train.sh` / `sh test.sh`
-3. To train/test the demo on the other three datasets: change the learning rate and lstm hidden dimension according to the paper and run `sh train.sh` / `sh test.sh`
-3. To train/test your own data: modify the 'train.sh' or 'test.sh' file with your file path, and run the shell file.
+2. Download the four datasets in `data/MSRANER`, `data/OntoNotesNER`, `data/ResumeNER` and `data/WeiboNER`, respectively.
+3. To train on the four datasets:
+(1) To train on OntoNotes:
+`python main.py --train data/OntoNotesNER/train.char.bmes --dev data/OntoNotesNER/dev.char.bmes --test data/OntoNotesNER/test.char.bmes --modelname OntoNotes --savedset data/OntoNotes.dset `
+(2) To train on Resume:
+`python main.py --train data/ResumeNER/train.char.bmes --dev data/ResumeNER/dev.char.bmes --test data/ResumeNER/test.char.bmes --modelname Resume --savedset data/Resume.dset --lr=0.005`
+(3) To train on Weibo:
+`python main.py --train data/WeiboNER/train.all.bmes --dev data/WeiboNER/dev.all.bmes --test data/WeiboNER/test.all.bmes --modelname Weibo --savedset data/Weibo.dset --lr=0.005 --hidden_dim 100`
+(4) To train on MSRA:
+`python main.py --train data/MSRANER/train.char.bmes --dev data/MSRANER/dev.char.bmes --test data/MSRANER/test.char.bmes --modelname MSRA --savedset data/MSRA.dset`
+4. To train/test your own data: modify the command with your file path and run.
 
