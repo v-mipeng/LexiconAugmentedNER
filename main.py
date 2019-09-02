@@ -394,9 +394,9 @@ if __name__ == '__main__':
     parser.add_argument('--modelpath', default="save_model/")
     parser.add_argument('--modelname', default="model")
     parser.add_argument('--savedset', help='Dir of saved data setting', default="data/save.dset")
-    parser.add_argument('--train', default="ResumeNER/train.char.bmes")
-    parser.add_argument('--dev', default="ResumeNER/dev.char.bmes" )
-    parser.add_argument('--test', default="ResumeNER/test.char.bmes")
+    parser.add_argument('--train', default="data/ResumeNER/train.char.bmes")
+    parser.add_argument('--dev', default="data/ResumeNER/dev.char.bmes" )
+    parser.add_argument('--test', default="data/ResumeNER/test.char.bmes")
     parser.add_argument('--seg', default="True")
     parser.add_argument('--extendalphabet', default="True")
     parser.add_argument('--raw')
@@ -448,9 +448,9 @@ if __name__ == '__main__':
     save_data_name = args.savedset
     gpu = torch.cuda.is_available()
 
-    char_emb = "../CNNNERmodel/data/gigaword_chn.all.a2b.uni.ite50.vec"
-    bichar_emb = "../CNNNERmodel/data/gigaword_chn.all.a2b.bi.ite50.vec"
-    gaz_file = "../CNNNERmodel/data/ctb.50d.vec"
+    char_emb = "data/gigaword_chn.all.a2b.uni.ite50.vec"
+    bichar_emb = "data/gigaword_chn.all.a2b.bi.ite50.vec"
+    gaz_file = "data/ctb.50d.vec"
 
     sys.stdout.flush()
 

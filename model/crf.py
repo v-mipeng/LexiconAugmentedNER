@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-# @Author: Jie Yang
-# @Date:   2017-12-04 23:19:38
-# @Last Modified by:   Jie Yang,     Contact: jieynlp@gmail.com
-# @Last Modified time: 2018-05-27 22:48:17
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
@@ -24,9 +19,8 @@ def log_sum_exp(vec, m_size):
     """
     _, idx = torch.max(vec, 1)  # B * 1 * M
     max_score = torch.gather(vec, 1, idx.view(-1, 1, m_size)).view(-1, 1, m_size)  # B * M
-    # 总之就是取了最大的那串吧？为什么不直接取max啊？？？？？？
-    #  max_score就是S(X,y)的wi项，所以这里得出的结果是整个log(p(y|X))的wi项？
-    return max_score.view(-1, m_size) + torch.log(torch.sum(torch.exp(vec - max_score.expand_as(vec)), 1)).view(-1, m_size)  # B * M  #这里为什么要减max_scorce啊？
+
+    return max_score.view(-1, m_size) + torch.log(torch.sum(torch.exp(vec - max_score.expand_as(vec)), 1)).view(-1, m_size)  # B * M
 
 class CRF(nn.Module):
 
@@ -66,15 +60,15 @@ class CRF(nn.Module):
         mask = mask.transpose(1,0).contiguous()  #(m,b)
         ins_num = seq_len * batch_size
         ## be careful the view shape, it is .view(ins_num, 1, tag_size) but not .view(ins_num, tag_size, 1)
-        feats = feats.transpose(1,0).contiguous().view(ins_num,1, tag_size).expand(ins_num, tag_size, tag_size)  #(i,t+2,t+2) 第2维t+2的每一个是一样的
+        feats = feats.transpose(1,0).contiguous().view(ins_num,1, tag_size).expand(ins_num, tag_size, tag_size)
         ## need to consider start
         scores = feats + self.transitions.view(1,tag_size,tag_size).expand(ins_num, tag_size, tag_size)
         scores = scores.view(seq_len, batch_size, tag_size, tag_size)
         # build iter
         seq_iter = enumerate(scores)   # (index,matrix) index is among the first dim: seqlen
-        _, inivalues = seq_iter.__next__()  # bat_size * from_target_size * to_target_size  (b,t+2,t+2) inivalues是每个句子的第一个字
+        _, inivalues = seq_iter.__next__()
         # only need start from start_tag
-        partition = inivalues[:, START_TAG, :].clone().view(batch_size, tag_size, 1)  # 获得从start tag到各tag的转移概率
+        partition = inivalues[:, START_TAG, :].clone().view(batch_size, tag_size, 1)
 
         ## add start score (from start to all tag, duplicate to batch_size)
         # partition = partition + self.transitions[START_TAG,:].view(1, tag_size, 1).expand(batch_size, tag_size, 1)
@@ -84,7 +78,7 @@ class CRF(nn.Module):
             # partition: previous results log(exp(from_target)), #(batch_size * from_target)
             # cur_values: bat_size * from_target * to_target
             
-            cur_values = cur_values + partition.contiguous().view(batch_size, tag_size, 1).expand(batch_size, tag_size, tag_size)   #加上上一转移的概率，即，从dim1的某一点出发的话，其转移概率要加上上一转移到达该点的概率（因此对dim2的每一到达点所加概率一样）
+            cur_values = cur_values + partition.contiguous().view(batch_size, tag_size, 1).expand(batch_size, tag_size, tag_size)
             cur_partition = log_sum_exp(cur_values, tag_size)  #(b,t)
             # print cur_partition.data
             
@@ -120,7 +114,7 @@ class CRF(nn.Module):
         tag_size = feats.size(2)
         assert(tag_size == self.tagset_size+2)
         ## calculate sentence length for each sentence
-        length_mask = torch.sum(mask.long(), dim = 1).view(batch_size,1).long()  #(batch_size,1) 每个句子的mask长度
+        length_mask = torch.sum(mask.long(), dim = 1).view(batch_size,1).long()  #(batch_size,1)
         ## mask to (seq_len, batch_size)
         mask = mask.transpose(1,0).contiguous()  #（seq_len,b）
         ins_num = seq_len * batch_size
