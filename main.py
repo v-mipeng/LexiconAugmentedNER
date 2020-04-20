@@ -442,7 +442,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_layer', default=4, type=int)
     parser.add_argument('--lr', type=float, default=0.0015)
     parser.add_argument('--batch_size', type=int, default=1)
-    parser.add_argument('--hidden_dim', type=int, default=256)
+    parser.add_argument('--hidden_dim', type=int, default=300)
     parser.add_argument('--model_type', default='lstm')
     parser.add_argument('--drop', type=float, default=0.5)
 
