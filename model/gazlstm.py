@@ -5,10 +5,12 @@ import torch.nn.functional as F
 import numpy as np
 from model.crf import CRF
 from model.layers import NERmodel
+from transformers.modeling_bert import BertModel
 
 class GazLSTM(nn.Module):
     def __init__(self, data):
         super(GazLSTM, self).__init__()
+
         self.gpu = data.HP_gpu
         self.use_biword = data.use_bigram
         self.hidden_dim = data.HP_hidden_dim
@@ -22,6 +24,7 @@ class GazLSTM(nn.Module):
         self.use_count = data.HP_use_count
         self.num_layer = data.HP_num_layer
         self.model_type = data.model_type
+        self.use_bert = data.use_bert
 
         scale = np.sqrt(3.0 / self.gaz_emb_dim)
         data.pretrain_gaz_embedding[0,:] = np.random.uniform(-scale, scale, [1, self.gaz_emb_dim])
@@ -56,6 +59,12 @@ class GazLSTM(nn.Module):
         if self.use_biword:
             char_feature_dim += self.biword_emb_dim
 
+        if self.use_bert:
+            self.bert_encoder = BertModel.from_pretrained('bert-base-chinese')
+            for p in self.bert_encoder.parameters():
+                p.requires_grad = False
+            char_feature_dim = char_feature_dim + 768
+
         ## lstm model
         if self.model_type == 'lstm':
             lstm_hidden = self.hidden_dim
@@ -77,7 +86,6 @@ class GazLSTM(nn.Module):
 
 
         if self.gpu:
-            #self.drop = self.drop.cuda()
             self.gaz_embedding = self.gaz_embedding.cuda()
             self.word_embedding = self.word_embedding.cuda()
             if self.use_biword:
@@ -86,7 +94,10 @@ class GazLSTM(nn.Module):
             self.hidden2tag = self.hidden2tag.cuda()
             self.crf = self.crf.cuda()
 
-    def get_tags(self,gaz_list, word_inputs, biword_inputs, layer_gaz, gaz_count, gaz_chars, gaz_mask_input, gazchar_mask_input, mask):
+            if self.use_bert:
+                self.bert_encoder = self.bert_encoder.cuda()
+
+    def get_tags(self,gaz_list, word_inputs, biword_inputs, layer_gaz, gaz_count, gaz_chars, gaz_mask_input, gazchar_mask_input, mask, word_seq_lengths, batch_bert, bert_mask):
 
         batch_size = word_inputs.size()[0]
         seq_len = word_inputs.size()[1]
@@ -150,7 +161,17 @@ class GazLSTM(nn.Module):
 
         gaz_embeds_cat = gaz_embeds.view(batch_size,seq_len,-1)  #(b,l,4*ge)
 
+
         word_input_cat = torch.cat([word_inputs_d, gaz_embeds_cat], dim=-1)  #(b,l,we+4*ge)
+
+
+        ### cat bert feature
+        if self.use_bert:
+            seg_id = torch.zeros(bert_mask.size()).long().cuda()
+            outputs = self.bert_encoder(batch_bert, bert_mask, seg_id)
+            outputs = outputs[0][:,1:-1,:]
+            word_input_cat = torch.cat([word_input_cat, outputs], dim=-1)
+
 
         feature_out_d = self.NERmodel(word_input_cat)
 
@@ -160,9 +181,9 @@ class GazLSTM(nn.Module):
 
 
 
-    def neg_log_likelihood_loss(self, gaz_list, word_inputs, biword_inputs, word_seq_lengths, layer_gaz, gaz_count, gaz_chars, gaz_mask, gazchar_mask, mask, batch_label):
+    def neg_log_likelihood_loss(self, gaz_list, word_inputs, biword_inputs, word_seq_lengths, layer_gaz, gaz_count, gaz_chars, gaz_mask, gazchar_mask, mask, batch_label, batch_bert, bert_mask):
 
-        tags, _ = self.get_tags(gaz_list, word_inputs, biword_inputs, layer_gaz, gaz_count,gaz_chars, gaz_mask, gazchar_mask, mask)
+        tags, _ = self.get_tags(gaz_list, word_inputs, biword_inputs, layer_gaz, gaz_count,gaz_chars, gaz_mask, gazchar_mask, mask, word_seq_lengths, batch_bert, bert_mask)
 
         total_loss = self.crf.neg_log_likelihood_loss(tags, mask, batch_label)
         scores, tag_seq = self.crf._viterbi_decode(tags, mask)
@@ -171,9 +192,9 @@ class GazLSTM(nn.Module):
 
 
 
-    def forward(self, gaz_list, word_inputs, biword_inputs, word_seq_lengths,layer_gaz, gaz_count,gaz_chars, gaz_mask,gazchar_mask, mask):
+    def forward(self, gaz_list, word_inputs, biword_inputs, word_seq_lengths,layer_gaz, gaz_count,gaz_chars, gaz_mask,gazchar_mask, mask, batch_bert, bert_mask):
 
-        tags, gaz_match = self.get_tags(gaz_list, word_inputs, biword_inputs, layer_gaz, gaz_count,gaz_chars, gaz_mask, gazchar_mask, mask)
+        tags, gaz_match = self.get_tags(gaz_list, word_inputs, biword_inputs, layer_gaz, gaz_count,gaz_chars, gaz_mask, gazchar_mask, mask, word_seq_lengths, batch_bert, bert_mask)
 
         scores, tag_seq = self.crf._viterbi_decode(tags, mask)
 

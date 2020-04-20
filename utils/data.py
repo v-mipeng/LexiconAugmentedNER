@@ -170,8 +170,8 @@ class Data:
                 else:
                     biword = word + NULLKEY
                 self.biword_alphabet.add(biword)
-                biword_index = self.biword_alphabet.get_index(biword)
-                self.biword_count[biword_index] = self.biword_count.get(biword_index,0) + 1
+                # biword_index = self.biword_alphabet.get_index(biword)
+                self.biword_count[biword] = self.biword_count.get(biword,0) + 1
                 for char in word:
                     self.char_alphabet.add(char)
 
@@ -250,7 +250,6 @@ class Data:
                 word_list = []
         print("gaz alphabet size:", self.gaz_alphabet.size())
 
-
     def fix_alphabet(self):
         self.word_alphabet.close()
         self.biword_alphabet.close()
@@ -265,7 +264,7 @@ class Data:
     def build_biword_pretrain_emb(self, emb_path):
         print ("build biword pretrain emb...")
         self.pretrain_biword_embedding, self.biword_emb_dim = build_pretrain_embedding(emb_path, self.biword_alphabet, self.biword_emb_dim, self.norm_biword_emb)
-        # self.pretrain_biword_embedding = distill_embedding(self.biword_count, self.pretrain_biword_embedding)
+
 
     def build_gaz_pretrain_emb(self, emb_path):
         print ("build gaz pretrain emb...")

@@ -30,7 +30,6 @@ def data_initialization(data, gaz_file, train_file, dev_file, test_file):
     data.build_gaz_alphabet(train_file,count=True)
     data.build_gaz_alphabet(dev_file,count=True)
     data.build_gaz_alphabet(test_file,count=True)
-    # data.build_gaz_cover()
     data.fix_alphabet()
     return data
 
@@ -148,29 +147,42 @@ def evaluate(data, model, name):
     total_batch = train_num//batch_size+1
     gazes = []
     for batch_id in range(total_batch):
-        start = batch_id*batch_size
-        end = (batch_id+1)*batch_size
-        if end >train_num:
-            end =  train_num
-        instance = instances[start:end]
-        if not instance:
-            continue
-        gaz_list,batch_word, batch_biword, batch_wordlen, batch_label, layer_gaz, gaz_count, gaz_chars, gaz_mask, gazchar_mask, mask  = batchify_with_label(instance, data.HP_gpu, data.HP_num_layer, True)
-        tag_seq, gaz_match = model(gaz_list,batch_word, batch_biword, batch_wordlen, layer_gaz, gaz_count,gaz_chars, gaz_mask, gazchar_mask, mask)
+        with torch.no_grad():
+            start = batch_id*batch_size
+            end = (batch_id+1)*batch_size
+            if end >train_num:
+                end =  train_num
+            instance = instances[start:end]
+            if not instance:
+                continue
+            gaz_list,batch_word, batch_biword, batch_wordlen, batch_label, layer_gaz, gaz_count, gaz_chars, gaz_mask, gazchar_mask, mask, batch_bert, bert_mask  = batchify_with_label(instance, data.HP_gpu, data.HP_num_layer, True)
+            tag_seq, gaz_match = model(gaz_list,batch_word, batch_biword, batch_wordlen, layer_gaz, gaz_count,gaz_chars, gaz_mask, gazchar_mask, mask, batch_bert, bert_mask)
 
-        gaz_list = [data.gaz_alphabet.get_instance(id) for batchlist in gaz_match if len(batchlist)>0 for id in batchlist ]
-        gazes.append( gaz_list)
+            gaz_list = [data.gaz_alphabet.get_instance(id) for batchlist in gaz_match if len(batchlist)>0 for id in batchlist ]
+            gazes.append( gaz_list)
 
-        if name == "dev":
-            pred_label, gold_label = recover_label(tag_seq, batch_label, mask, data.label_alphabet)
-        else:
-            pred_label, gold_label = recover_label(tag_seq, batch_label, mask, data.label_alphabet)
-        pred_results += pred_label
-        gold_results += gold_label
+            if name == "dev":
+                pred_label, gold_label = recover_label(tag_seq, batch_label, mask, data.label_alphabet)
+            else:
+                pred_label, gold_label = recover_label(tag_seq, batch_label, mask, data.label_alphabet)
+            pred_results += pred_label
+            gold_results += gold_label
     decode_time = time.time() - start_time
     speed = len(instances)/decode_time
     acc, p, r, f = get_ner_fmeasure(gold_results, pred_results, data.tagScheme)
     return speed, acc, p, r, f, pred_results, gazes
+
+
+def get_text_input(self, caption):
+    caption_tokens = self.tokenizer.tokenize(caption)
+    caption_tokens = ['[CLS]'] + caption_tokens + ['[SEP]']
+    caption_ids = self.tokenizer.convert_tokens_to_ids(caption_tokens)
+    if len(caption_ids) >= self.max_seq_len:
+        caption_ids = caption_ids[:self.max_seq_len]
+    else:
+        caption_ids = caption_ids + [0] * (self.max_seq_len - len(caption_ids))
+    caption = torch.tensor(caption_ids)
+    return caption
 
 
 def batchify_with_label(input_batch_list, gpu, num_layer, volatile_flag=False):
@@ -185,6 +197,8 @@ def batchify_with_label(input_batch_list, gpu, num_layer, volatile_flag=False):
     gaz_chars = [sent[7] for sent in input_batch_list]
     gaz_mask = [sent[8] for sent in input_batch_list]
     gazchar_mask = [sent[9] for sent in input_batch_list]
+    ### bert tokens
+    bert_ids = [sent[10] for sent in input_batch_list]
 
     word_seq_lengths = torch.LongTensor(list(map(len, words)))
     max_seq_len = word_seq_lengths.max()
@@ -192,6 +206,9 @@ def batchify_with_label(input_batch_list, gpu, num_layer, volatile_flag=False):
     biword_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len))).long()
     label_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len))).long()
     mask = autograd.Variable(torch.zeros((batch_size, max_seq_len))).byte()
+    ### bert seq tensor
+    bert_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len+2))).long()
+    bert_mask = autograd.Variable(torch.zeros((batch_size, max_seq_len+2))).long()
 
     gaz_num = [len(layer_gazs[i][0][0]) for i in range(batch_size)]
     max_gaz_num = max(gaz_num)
@@ -203,18 +220,22 @@ def batchify_with_label(input_batch_list, gpu, num_layer, volatile_flag=False):
     gaz_mask_tensor = torch.ones(batch_size, max_seq_len, 4, max_gaz_num).byte()
     gazchar_mask_tensor = torch.ones(batch_size, max_seq_len, 4, max_gaz_num, max_gaz_len).byte()
 
-    for b, (seq, biseq, label, seqlen, layergaz, gazmask, gazcount, gazchar, gazchar_mask, gaznum, gazlen) in enumerate(zip(words, biwords, labels, word_seq_lengths, layer_gazs, gaz_mask, gaz_count, gaz_chars, gazchar_mask, gaz_num, gaz_len)):
+    for b, (seq, bert_id, biseq, label, seqlen, layergaz, gazmask, gazcount, gazchar, gazchar_mask, gaznum, gazlen) in enumerate(zip(words, bert_ids, biwords, labels, word_seq_lengths, layer_gazs, gaz_mask, gaz_count, gaz_chars, gazchar_mask, gaz_num, gaz_len)):
 
         word_seq_tensor[b, :seqlen] = torch.LongTensor(seq)
         biword_seq_tensor[b, :seqlen] = torch.LongTensor(biseq)
         label_seq_tensor[b, :seqlen] = torch.LongTensor(label)
         layer_gaz_tensor[b, :seqlen, :, :gaznum] = torch.LongTensor(layergaz)
         mask[b, :seqlen] = torch.Tensor([1]*int(seqlen))
+        bert_mask[b, :seqlen+2] = torch.LongTensor([1]*int(seqlen+2))
         gaz_mask_tensor[b, :seqlen, :, :gaznum] = torch.ByteTensor(gazmask)
         gaz_count_tensor[b, :seqlen, :, :gaznum] = torch.FloatTensor(gazcount)
         gaz_count_tensor[b, seqlen:] = 1
         gaz_chars_tensor[b, :seqlen, :, :gaznum, :gazlen] = torch.LongTensor(gazchar)
         gazchar_mask_tensor[b, :seqlen, :, :gaznum, :gazlen] = torch.ByteTensor(gazchar_mask)
+
+        ##bert
+        bert_seq_tensor[b, :seqlen+2] = torch.LongTensor(bert_id)
 
 
     if gpu:
@@ -228,8 +249,11 @@ def batchify_with_label(input_batch_list, gpu, num_layer, volatile_flag=False):
         gazchar_mask_tensor = gazchar_mask_tensor.cuda()
         gaz_count_tensor = gaz_count_tensor.cuda()
         mask = mask.cuda()
+        bert_seq_tensor = bert_seq_tensor.cuda()
+        bert_mask = bert_mask.cuda()
 
-    return gazs, word_seq_tensor, biword_seq_tensor, word_seq_lengths, label_seq_tensor, layer_gaz_tensor, gaz_count_tensor,gaz_chars_tensor, gaz_mask_tensor, gazchar_mask_tensor, mask
+    # print(bert_seq_tensor.type())
+    return gazs, word_seq_tensor, biword_seq_tensor, word_seq_lengths, label_seq_tensor, layer_gaz_tensor, gaz_count_tensor,gaz_chars_tensor, gaz_mask_tensor, gazchar_mask_tensor, mask, bert_seq_tensor, bert_mask
 
 
 
@@ -238,6 +262,7 @@ def train(data, save_model_dir, seg=True):
     print("Training with {} model.".format(data.model_type))
 
     #data.show_data_summary()
+
 
     model = SeqModel(data)
     print( "finish building model.")
@@ -281,13 +306,14 @@ def train(data, save_model_dir, seg=True):
             if end >train_num:
                 end = train_num
             instance = data.train_Ids[start:end]
+            words = data.train_texts[start:end]
             if not instance:
                 continue
 
-            gaz_list,  batch_word, batch_biword, batch_wordlen, batch_label, layer_gaz, gaz_count, gaz_chars, gaz_mask, gazchar_mask, mask= batchify_with_label(instance, data.HP_gpu,data.HP_num_layer)
+            gaz_list,  batch_word, batch_biword, batch_wordlen, batch_label, layer_gaz, gaz_count, gaz_chars, gaz_mask, gazchar_mask, mask, batch_bert, bert_mask = batchify_with_label(instance, data.HP_gpu,data.HP_num_layer)
 
             instance_count += 1
-            loss, tag_seq = model.neg_log_likelihood_loss(gaz_list, batch_word, batch_biword, batch_wordlen, layer_gaz, gaz_count,gaz_chars, gaz_mask, gazchar_mask, mask, batch_label)
+            loss, tag_seq = model.neg_log_likelihood_loss(gaz_list, batch_word, batch_biword, batch_wordlen, layer_gaz, gaz_count,gaz_chars, gaz_mask, gazchar_mask, mask, batch_label, batch_bert, bert_mask)
 
             right, whole = predict_check(tag_seq, batch_label, mask)
             right_token += right
@@ -387,16 +413,24 @@ def load_model_decode(model_dir, data, name, gpu, seg=True):
     return pred_results
 
 
+def print_results(pred, modelname=""):
+    toprint = []
+    for sen in pred:
+        sen = " ".join(sen) + '\n'
+        toprint.append(sen)
+    with open(modelname+'_labels.txt','w') as f:
+        f.writelines(toprint)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--embedding',  help='Embedding for words', default='None')
-    parser.add_argument('--status', choices=['train', 'test', 'decode','gaz'], help='update algorithm', default='train')
+    parser.add_argument('--status', choices=['train', 'test'], help='update algorithm', default='train')
     parser.add_argument('--modelpath', default="save_model/")
     parser.add_argument('--modelname', default="model")
     parser.add_argument('--savedset', help='Dir of saved data setting', default="data/save.dset")
-    parser.add_argument('--train', default="data/ResumeNER/train.char.bmes")
-    parser.add_argument('--dev', default="data/ResumeNER/dev.char.bmes" )
-    parser.add_argument('--test', default="data/ResumeNER/test.char.bmes")
+    parser.add_argument('--train', default="ResumeNER/train.char.bmes")
+    parser.add_argument('--dev', default="ResumeNER/dev.char.bmes" )
+    parser.add_argument('--test', default="ResumeNER/test.char.bmes")
     parser.add_argument('--seg', default="True")
     parser.add_argument('--extendalphabet', default="True")
     parser.add_argument('--raw')
@@ -412,20 +446,12 @@ if __name__ == '__main__':
     parser.add_argument('--model_type', default='lstm')
     parser.add_argument('--drop', type=float, default=0.5)
 
-    flag_parser = parser.add_mutually_exclusive_group(required=False)
-    flag_parser.add_argument('--use_biword', dest='use_biword', action='store_true')
-    flag_parser.add_argument('--no-use_biword', dest='use_biword', action='store_false')
-    parser.set_defaults(use_biword=False)
-
-    char_parser = parser.add_mutually_exclusive_group(required=False)
-    char_parser.add_argument('--use_char', dest='use_char', action='store_true')
-    char_parser.add_argument('--no-use_char', dest='use_char', action='store_false')
-    parser.set_defaults(use_char=False)
-
-    count_parser = parser.add_mutually_exclusive_group(required=False)
-    count_parser.add_argument('--use_count', dest='use_count', action='store_true')
-    count_parser.add_argument('--no-use_count', dest='use_count', action='store_false')
-    parser.set_defaults(use_count=True)
+    parser.add_argument('--use_biword', dest='use_biword', action='store_true', default=False)
+    # parser.set_defaults(use_biword=False)
+    parser.add_argument('--use_char', dest='use_char', action='store_true', default=False)
+    # parser.set_defaults(use_biword=False)
+    parser.add_argument('--use_count', action='store_true', default=True)
+    parser.add_argument('--use_bert', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -448,9 +474,9 @@ if __name__ == '__main__':
     save_data_name = args.savedset
     gpu = torch.cuda.is_available()
 
-    char_emb = "data/gigaword_chn.all.a2b.uni.ite50.vec"
-    bichar_emb = "data/gigaword_chn.all.a2b.bi.ite50.vec"
-    gaz_file = "data/ctb.50d.vec"
+    char_emb = "../CNNNERmodel/data/gigaword_chn.all.a2b.uni.ite50.vec"
+    bichar_emb = "../CNNNERmodel/data/gigaword_chn.all.a2b.bi.ite50.vec"
+    gaz_file = "../CNNNERmodel/data/ctb.50d.vec"
 
     sys.stdout.flush()
 
@@ -471,6 +497,7 @@ if __name__ == '__main__':
             data.HP_dropout = args.drop
             data.HP_use_count = args.use_count
             data.model_type = args.model_type
+            data.use_bert = args.use_bert
         else:
             data = Data()
             data.HP_gpu = gpu
@@ -488,6 +515,7 @@ if __name__ == '__main__':
             data.HP_hidden_dim = args.hidden_dim
             data.HP_use_count = args.use_count
             data.model_type = args.model_type
+            data.use_bert = args.use_bert
             data_initialization(data, gaz_file, train_file, dev_file, test_file)
             data.generate_instance_with_gaz(train_file,'train')
             data.generate_instance_with_gaz(dev_file,'dev')
@@ -500,7 +528,7 @@ if __name__ == '__main__':
             with open(save_data_name, 'wb') as f:
                 pickle.dump(data, f)
             set_seed(seed_num)
-
+        print('data.use_biword=',data.use_bigram)
         train(data, save_model_dir, seg)
     elif status == 'test':
         print('Loading processed data')
@@ -510,14 +538,14 @@ if __name__ == '__main__':
         data.HP_iteration = args.num_iter
         data.label_comment = args.labelcomment
         data.result_file = args.resultfile
-        data.HP_use_gaz = args.use_gaz
+        # data.HP_use_gaz = args.use_gaz
         data.HP_lr = args.lr
         data.use_bigram = args.use_biword
         data.HP_use_char = args.use_char
         data.model_type = args.model_type
         data.HP_hidden_dim = args.hidden_dim
         data.HP_use_count = args.use_count
-
+        data.generate_instance_with_gaz(test_file,'test')
         load_model_decode(save_model_dir, data, 'test', gpu, seg)
 
     else:

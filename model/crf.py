@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# @Author: Jie Yang
+# @Date:   2017-12-04 23:19:38
+# @Last Modified by:   Jie Yang,     Contact: jieynlp@gmail.com
+# @Last Modified time: 2018-05-27 22:48:17
 import torch
 import torch.autograd as autograd
 import torch.nn as nn
@@ -20,7 +25,7 @@ def log_sum_exp(vec, m_size):
     _, idx = torch.max(vec, 1)  # B * 1 * M
     max_score = torch.gather(vec, 1, idx.view(-1, 1, m_size)).view(-1, 1, m_size)  # B * M
 
-    return max_score.view(-1, m_size) + torch.log(torch.sum(torch.exp(vec - max_score.expand_as(vec)), 1)).view(-1, m_size)  # B * M
+    return max_score.view(-1, m_size) + torch.log(torch.sum(torch.exp(vec - max_score.expand_as(vec)), 1)).view(-1, m_size)
 
 class CRF(nn.Module):
 
@@ -114,7 +119,7 @@ class CRF(nn.Module):
         tag_size = feats.size(2)
         assert(tag_size == self.tagset_size+2)
         ## calculate sentence length for each sentence
-        length_mask = torch.sum(mask.long(), dim = 1).view(batch_size,1).long()  #(batch_size,1)
+        length_mask = torch.sum(mask.long(), dim = 1).view(batch_size,1).long()
         ## mask to (seq_len, batch_size)
         mask = mask.transpose(1,0).contiguous()  #（seq_len,b）
         ins_num = seq_len * batch_size

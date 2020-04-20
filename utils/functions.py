@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import re
 from utils.alphabet import Alphabet
+from transformers.tokenization_bert import BertTokenizer
 NULLKEY = "-null-"
 
 def normalize_word(word):
@@ -17,6 +18,9 @@ def normalize_word(word):
 
 
 def read_instance_with_gaz(num_layer, input_file, gaz, word_alphabet, biword_alphabet, biword_count, char_alphabet, gaz_alphabet, gaz_count, gaz_split, label_alphabet, number_normalized, max_sent_length, char_padding_size=-1, char_padding_symbol = '</pad>'):
+
+    tokenizer = BertTokenizer.from_pretrained('bert-base-chinese', do_lower_case=True)
+
     in_lines = open(input_file,'r',encoding="utf-8").readlines()
     instence_texts = []
     instence_Ids = []
@@ -96,7 +100,7 @@ def read_instance_with_gaz(num_layer, input_file, gaz, word_alphabet, biword_alp
 
                         if matched_length[w] == 1:  ## Single
                             gazs[idx][3].append(matched_Id[w])
-                            gazs_count[idx][3].append(gaz_count[matched_Id[w]])
+                            gazs_count[idx][3].append(1)
                             gaz_char_Id[idx][3].append(gaz_chars)
                         else:
                             gazs[idx][0].append(matched_Id[w])   ## Begin
@@ -159,9 +163,12 @@ def read_instance_with_gaz(num_layer, input_file, gaz, word_alphabet, biword_alp
                     layergazmasks.append(gazmask)
                     gazchar_masks.append(gazcharmask)
 
+                texts = ['[CLS]'] + words + ['[SEP]']
+                bert_text_ids = tokenizer.convert_tokens_to_ids(texts)
+
 
                 instence_texts.append([words, biwords, chars, gazs, labels])
-                instence_Ids.append([word_Ids, biword_Ids, char_Ids, gaz_Ids, label_Ids, gazs, gazs_count, gaz_char_Id, layergazmasks,gazchar_masks])
+                instence_Ids.append([word_Ids, biword_Ids, char_Ids, gaz_Ids, label_Ids, gazs, gazs_count, gaz_char_Id, layergazmasks,gazchar_masks, bert_text_ids])
 
             words = []
             biwords = []
