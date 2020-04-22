@@ -45,7 +45,7 @@ The pretrained embeddings(word embedding, char embedding and bichar embedding) a
 
 - To train on Resume:
 
-`python main.py --train data/ResumeNER/train.char.bmes --dev data/ResumeNER/dev.char.bmes --test data/ResumeNER/test.char.bmes --modelname Resume --savedset data/Resume.dset --lr=0.005 --hidden_dim 200`
+`python main.py --train data/ResumeNER/train.char.bmes --dev data/ResumeNER/dev.char.bmes --test data/ResumeNER/test.char.bmes --modelname Resume --savedset data/Resume.dset --hidden_dim 200`
 
 - To train on Weibo:
 

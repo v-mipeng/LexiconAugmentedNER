@@ -60,9 +60,6 @@ class GazLSTM(nn.Module):
             char_feature_dim += self.biword_emb_dim
 
         if self.use_bert:
-            self.bert_encoder = BertModel.from_pretrained('bert-base-chinese')
-            for p in self.bert_encoder.parameters():
-                p.requires_grad = False
             char_feature_dim = char_feature_dim + 768
 
         ## lstm model
@@ -84,6 +81,10 @@ class GazLSTM(nn.Module):
         self.hidden2tag = nn.Linear(self.hidden_dim, data.label_alphabet_size+2)
         self.crf = CRF(data.label_alphabet_size, self.gpu)
 
+        if self.use_bert:
+            self.bert_encoder = BertModel.from_pretrained('bert-base-chinese')
+            for p in self.bert_encoder.parameters():
+                p.requires_grad = False
 
         if self.gpu:
             self.gaz_embedding = self.gaz_embedding.cuda()

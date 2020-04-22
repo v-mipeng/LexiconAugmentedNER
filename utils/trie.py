@@ -36,7 +36,7 @@ class Trie:
     def enumerateMatch(self, word, space="_", backward=False):  #space=‘’
         matched = []
 
-        while len(word) > 1:
+        while len(word) > 0:
             if self.search(word):
                 matched.append(space.join(word[:]))
             del word[-1]
