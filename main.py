@@ -205,7 +205,7 @@ def batchify_with_label(input_batch_list, gpu, num_layer, volatile_flag=False):
     word_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len))).long()
     biword_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len))).long()
     label_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len))).long()
-    mask = autograd.Variable(torch.zeros((batch_size, max_seq_len))).byte()
+    mask = autograd.Variable(torch.zeros((batch_size, max_seq_len))).bool()
     ### bert seq tensor
     bert_seq_tensor = autograd.Variable(torch.zeros((batch_size, max_seq_len+2))).long()
     bert_mask = autograd.Variable(torch.zeros((batch_size, max_seq_len+2))).long()
@@ -217,8 +217,8 @@ def batchify_with_label(input_batch_list, gpu, num_layer, volatile_flag=False):
     gaz_len = [len(gaz_chars[i][0][0][0]) for i in range(batch_size)]
     max_gaz_len = max(gaz_len)
     gaz_chars_tensor = torch.zeros(batch_size, max_seq_len, 4, max_gaz_num, max_gaz_len).long()
-    gaz_mask_tensor = torch.ones(batch_size, max_seq_len, 4, max_gaz_num).byte()
-    gazchar_mask_tensor = torch.ones(batch_size, max_seq_len, 4, max_gaz_num, max_gaz_len).byte()
+    gaz_mask_tensor = torch.ones(batch_size, max_seq_len, 4, max_gaz_num).bool()
+    gazchar_mask_tensor = torch.ones(batch_size, max_seq_len, 4, max_gaz_num, max_gaz_len).bool()
 
     for b, (seq, bert_id, biseq, label, seqlen, layergaz, gazmask, gazcount, gazchar, gazchar_mask, gaznum, gazlen) in enumerate(zip(words, bert_ids, biwords, labels, word_seq_lengths, layer_gazs, gaz_mask, gaz_count, gaz_chars, gazchar_mask, gaz_num, gaz_len)):
 
